@@ -6,9 +6,11 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
 class App extends Component {
+  spheres = [];
   componentDidMount() {
     this.sceneSetup();
     this.addCustomSceneObjects();
+    this.addLights();
     this.startAnimationLoop();
     window.addEventListener('resize', this.handleWindowResize);
   }
@@ -20,8 +22,8 @@ class App extends Component {
   }
 
   handleWindowResize = () => {
-    const width = this.el.clientWidth;
-    const height = this.el.clientHeight;
+    const width = this.mount.clientWidth;
+    const height = this.mount.clientHeight;
 
     this.renderer.setSize(width, height);
     this.camera.aspect = width / height;
@@ -30,37 +32,47 @@ class App extends Component {
 
   sceneSetup = () => {
     // grab dimensions
-    const width = this.el.clientWidth;
-    const height = this.el.clientHeight;
+    const width = this.mount.clientWidth;
+    const height = this.mount.clientHeight;
+    const fov = 75;
+    const aspect = width / height; // the canvas default
+    const near = 0.1;
+    const far = 10000;
 
-    this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(
-      75, // fov
-      width / height, // aspect ratio
-      0.1, // near pane
-      1000 // far plane
-    );
-    this.controls = new OrbitControls(this.camera, this.el);
-
+    this.camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
     // move camera back a bit
     this.camera.position.z = 5;
 
-    this.renderer = new THREE.WebGLRenderer();
+    this.scene = new THREE.Scene();
+
+    this.controls = new OrbitControls(this.camera, this.mount);
+
+    this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(width, height);
-    this.el.appendChild(this.renderer.domElement); // mount using react ref
+    this.mount.appendChild(this.renderer.domElement); // mount using react ref
   };
 
   addCustomSceneObjects = () => {
-    const geometry = new THREE.BoxGeometry(2, 2, 2);
-    const material = new THREE.MeshPhongMaterial({
-      color: 0x156289,
-      emissive: 0x072534,
-      side: THREE.DoubleSide,
-      flatShading: true
+    var geometry = new THREE.SphereBufferGeometry(150, 32, 16);
+    var material = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      envMap: this.scene.background,
+      refractionRatio: 0.95
     });
-    this.cube = new THREE.Mesh(geometry, material);
-    this.scene.add(this.cube);
+    // material.envMap.mapping = THREE.CubeRefractionMapping;
 
+    for (var i = 0; i < 500; i++) {
+      var mesh = new THREE.Mesh(geometry, material);
+      mesh.position.x = Math.random() * 10000 - 5000;
+      mesh.position.y = Math.random() * 10000 - 5000;
+      mesh.position.z = Math.random() * 10000 - 5000;
+      mesh.scale.x = mesh.scale.y = mesh.scale.z = Math.random() * 3 + 1;
+      this.scene.add(mesh);
+      this.spheres.push(mesh);
+    }
+  };
+
+  addLights = () => {
     const lights = [];
     lights[0] = new THREE.PointLight(0xfffff, 1, 0);
     lights[1] = new THREE.PointLight(0xfffff, 1, 0);
@@ -76,43 +88,28 @@ class App extends Component {
   };
 
   startAnimationLoop = () => {
-    this.cube.rotation.x += 0.01;
-    this.cube.rotation.y += 0.01;
+    var timer = 0.0001 * Date.now();
+    for (var i = 0, il = this.spheres.length; i < il; i++) {
+      var sphere = this.spheres[i];
+      sphere.position.x = 5000 * Math.cos(timer + i);
+      sphere.position.y = 5000 * Math.sin(timer + i * 1.1);
+    }
 
     this.renderer.render(this.scene, this.camera);
     this.requestID = window.requestAnimationFrame(this.startAnimationLoop);
   };
 
   render() {
-    return <div ref={ref => (this.el = ref)} />;
+    return (
+      <div
+        style={{ height: '100%', width: '100vw' }}
+        ref={mount => (this.mount = mount)}
+      />
+    );
   }
 }
-
-// class Container extends React.Component {
-//   state = { isMounted: true };
-
-//   render() {
-//     const { isMounted = true } = this.state;
-//     return (
-//       <>
-//         <button
-//           onClick={() =>
-//             this.setState(state => ({ isMounted: !state.isMounted }))
-//           }
-//         >
-//           {isMounted ? 'Unmount' : 'Mount'}
-//         </button>
-//         {isMounted && <App />}
-//         {isMounted && <div>Scroll to zoom, drag to rotate</div>}
-//       </>
-//     );
-//   }
-// }
 
 const rootElement = document.getElementById('root');
 ReactDOM.render(<App />, rootElement);
 
 export default App;
-
-// const rootElement = document.getElementById('root');
-// ReactDOM.render(<App />, rootElement);
